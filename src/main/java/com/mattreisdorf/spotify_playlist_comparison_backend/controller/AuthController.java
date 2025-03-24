@@ -45,6 +45,7 @@ public class AuthController {
 
   private final String AUTHORIZE_URL = "https://accounts.spotify.com/authorize";
   private final String TOKEN_URL = "https://accounts.spotify.com/api/token";
+  
 
   // Begin authorization process with this endpoint
   @GetMapping("/login")

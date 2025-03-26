@@ -1,5 +1,9 @@
 package com.mattreisdorf.spotify_playlist_comparison_backend.controller;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -54,7 +59,7 @@ public class ApiController {
   }
 
   @GetMapping("/api/playlist")
-  public ResponseEntity<String> getPlaylistData(
+  public ResponseEntity<?> getPlaylistData(
       HttpServletRequest request,
       @RequestParam("playlist") String playlistUrl) {
 
@@ -79,12 +84,50 @@ public class ApiController {
       String playlistId = matcher.group(1);
 
       RestTemplate restTemplate = new RestTemplate();
-      ResponseEntity<String> playlistDataResponse = restTemplate.exchange(
-          SPOTIFY_PLAYLIST_URL + playlistId,
-          HttpMethod.GET,
-          entity,
-          String.class);
-      return ResponseEntity.status(playlistDataResponse.getStatusCode()).body(playlistDataResponse.getBody());
+
+      UriComponentsBuilder builder = UriComponentsBuilder
+        .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
+        .queryParam("limit", 1)
+        .queryParam("offset", 0);
+
+      ResponseEntity<Map> totalResponse = restTemplate.exchange(
+        builder.toUriString(),
+        HttpMethod.GET,
+        entity,
+        Map.class
+      );
+
+      int total = (int) totalResponse.getBody().get("total");
+
+
+      List<Object> allItems = new ArrayList<>();
+      int limit = 100;
+
+      for (int offset = 0; offset < total; offset += limit) {
+        UriComponentsBuilder pageBuilder = UriComponentsBuilder
+          .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
+          .queryParam("limit", limit)
+          .queryParam("offset", offset);
+
+          ResponseEntity<Map> pageResponse = restTemplate.exchange(
+            pageBuilder.toUriString(),
+            HttpMethod.GET,
+            entity,
+            Map.class
+          );
+
+          List<Object> pageItems = (List<Object>) pageResponse.getBody().get("items");
+          allItems.addAll(pageItems);
+
+      }
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("id", playlistId);
+      response.put("total", total);
+      response.put("tracks", allItems);
+      
+      return new ResponseEntity<>(response, HttpStatus.OK);
+      
     }
 
     return new ResponseEntity<>("Invalid Playlist", HttpStatus.OK);

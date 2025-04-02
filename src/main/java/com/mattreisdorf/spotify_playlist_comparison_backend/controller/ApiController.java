@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.catalina.connector.Response;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -59,9 +60,9 @@ public class ApiController {
   }
 
   @GetMapping("/api/playlist")
-  public ResponseEntity<?> getPlaylistData(
-      HttpServletRequest request,
-      @RequestParam("playlist") String playlistUrl) {
+  public ResponseEntity<?> getPlaylistData(HttpServletRequest request, @RequestParam("playlist") String playlistUrl) {
+
+    // TODO: ID vs URL checking
 
     String urlRegex = "spotify\\.com/playlist/([^/?]+)";
     Pattern pattern = Pattern.compile(urlRegex);
@@ -86,38 +87,35 @@ public class ApiController {
       RestTemplate restTemplate = new RestTemplate();
 
       UriComponentsBuilder builder = UriComponentsBuilder
-        .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
-        .queryParam("limit", 1)
-        .queryParam("offset", 0);
+          .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
+          .queryParam("limit", 1)
+          .queryParam("offset", 0);
 
       ResponseEntity<Map> totalResponse = restTemplate.exchange(
-        builder.toUriString(),
-        HttpMethod.GET,
-        entity,
-        Map.class
-      );
+          builder.toUriString(),
+          HttpMethod.GET,
+          entity,
+          Map.class);
 
       int total = (int) totalResponse.getBody().get("total");
-
 
       List<Object> allItems = new ArrayList<>();
       int limit = 100;
 
       for (int offset = 0; offset < total; offset += limit) {
         UriComponentsBuilder pageBuilder = UriComponentsBuilder
-          .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
-          .queryParam("limit", limit)
-          .queryParam("offset", offset);
+            .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
+            .queryParam("limit", limit)
+            .queryParam("offset", offset);
 
-          ResponseEntity<Map> pageResponse = restTemplate.exchange(
+        ResponseEntity<Map> pageResponse = restTemplate.exchange(
             pageBuilder.toUriString(),
             HttpMethod.GET,
             entity,
-            Map.class
-          );
+            Map.class);
 
-          List<Object> pageItems = (List<Object>) pageResponse.getBody().get("items");
-          allItems.addAll(pageItems);
+        List<Object> pageItems = (List<Object>) pageResponse.getBody().get("items");
+        allItems.addAll(pageItems);
 
       }
 
@@ -125,9 +123,9 @@ public class ApiController {
       response.put("id", playlistId);
       response.put("total", total);
       response.put("tracks", allItems);
-      
+
       return new ResponseEntity<>(response, HttpStatus.OK);
-      
+
     }
 
     return new ResponseEntity<>("Invalid Playlist", HttpStatus.OK);

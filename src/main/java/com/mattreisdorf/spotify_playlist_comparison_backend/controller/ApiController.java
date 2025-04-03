@@ -92,25 +92,24 @@ public class ApiController {
       int total;
       List<TrackItem> allTracks = new ArrayList<>();
       int limit = 100;
-      
+
       try {
         ResponseEntity<PlaylistMeta> playlistMetaResponse = restTemplate.exchange(
-          SPOTIFY_PLAYLIST_URL + playlistId,
-          HttpMethod.GET,
-          entity,
-          new ParameterizedTypeReference<PlaylistMeta>() {}
-        );
+            SPOTIFY_PLAYLIST_URL + playlistId,
+            HttpMethod.GET,
+            entity,
+            new ParameterizedTypeReference<PlaylistMeta>() {
+            });
 
         // Metadata *should* never be null
-        // As long as ID is valid, response *should* have a body, even if playlist doesn't have any tracks
+        // As long as ID is valid, response *should* have a body, even if playlist
+        // doesn't have any tracks
         // If something tragic happens, this will throw a null pointer exception
         // But that really shouldn't happen
-        playlistMeta = Objects.requireNonNull(playlistMetaResponse.getBody(), "Playlist metadata was unexpectedly null");
+        playlistMeta = Objects.requireNonNull(playlistMetaResponse.getBody(),
+            "Playlist metadata was unexpectedly null");
         playlistName = playlistMeta.getName();
         total = playlistMeta.getTracks().getTotal();
-
-
-
 
       } catch (NullPointerException npe) {
         // I really don't expect this to ever happen
@@ -125,21 +124,20 @@ public class ApiController {
       try {
         for (int offset = 0; offset < total; offset += limit) {
           UriComponentsBuilder pageBuilder = UriComponentsBuilder
-            .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
-            .queryParam("limit", limit)
-            .queryParam("offset", offset);
+              .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
+              .queryParam("limit", limit)
+              .queryParam("offset", offset);
 
           ResponseEntity<PageTracks> pageResponse = restTemplate.exchange(
-            pageBuilder.toUriString(),
-            HttpMethod.GET,
-            entity,
-            new ParameterizedTypeReference<PageTracks>() {}
-            );
+              pageBuilder.toUriString(),
+              HttpMethod.GET,
+              entity,
+              new ParameterizedTypeReference<PageTracks>() {
+              });
 
-          PageTracks pageItems =  Objects.requireNonNull(pageResponse.getBody(), "Paginated Tracks Response Was Unexpectedly Null");
+          PageTracks pageItems = Objects.requireNonNull(pageResponse.getBody(),
+              "Paginated Tracks Response Was Unexpectedly Null");
           allTracks.addAll(pageItems.getItems());
-
-          
         }
 
         Map<String, Object> responseBody = new HashMap<>();
@@ -150,7 +148,8 @@ public class ApiController {
 
         return new ResponseEntity<>(responseBody, HttpStatus.OK);
       } catch (NullPointerException npe) {
-        return new ResponseEntity<>("Paginated Tracks Response Was Unexpectedly Null", HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>("Paginated Tracks Response Was Unexpectedly Null",
+            HttpStatus.INTERNAL_SERVER_ERROR);
       } catch (Exception e) {
         return new ResponseEntity<>("Caught Exception in All Tracks", HttpStatus.BAD_REQUEST);
       }

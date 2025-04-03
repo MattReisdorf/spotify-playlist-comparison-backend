@@ -1,9 +1,15 @@
 package com.mattreisdorf.spotify_playlist_comparison_backend.controller;
 
+import com.mattreisdorf.spotify_playlist_comparison_backend.model.PageTracks;
+import com.mattreisdorf.spotify_playlist_comparison_backend.model.PlaylistMeta;
+import com.mattreisdorf.spotify_playlist_comparison_backend.model.TrackItem;
+import com.mattreisdorf.spotify_playlist_comparison_backend.util.ApiUtils;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,70 +68,92 @@ public class ApiController {
   @GetMapping("/api/playlist")
   public ResponseEntity<?> getPlaylistData(HttpServletRequest request, @RequestParam("playlist") String playlistUrl) {
 
-    // TODO: ID vs URL checking
+    String playlistId = ApiUtils.extractIdString(playlistUrl);
+    boolean validId = ApiUtils.validateIdString(playlistId);
 
-    String urlRegex = "spotify\\.com/playlist/([^/?]+)";
-    Pattern pattern = Pattern.compile(urlRegex);
-    Matcher matcher = pattern.matcher(playlistUrl);
-
-    HttpSession session = request.getSession(false);
-
-    if (session == null || session.getAttribute("access_token") == null) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not Authorized");
+    HttpSession session;
+    try {
+      session = request.getSession(false);
+    } catch (Exception e) {
+      return new ResponseEntity<>("Not Authorized", HttpStatus.UNAUTHORIZED);
     }
 
     String accessToken = (String) session.getAttribute("access_token");
-
     HttpHeaders headers = new HttpHeaders();
     headers.setBearerAuth(accessToken);
 
     HttpEntity<String> entity = new HttpEntity<>(headers);
 
-    if (matcher.find()) {
-      String playlistId = matcher.group(1);
-
+    if (validId) {
       RestTemplate restTemplate = new RestTemplate();
 
-      UriComponentsBuilder builder = UriComponentsBuilder
-          .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
-          .queryParam("limit", 1)
-          .queryParam("offset", 0);
-
-      ResponseEntity<Map> totalResponse = restTemplate.exchange(
-          builder.toUriString(),
+      PlaylistMeta playlistMeta;
+      String playlistName;
+      int total;
+      List<TrackItem> allTracks = new ArrayList<>();
+      int limit = 100;
+      
+      try {
+        ResponseEntity<PlaylistMeta> playlistMetaResponse = restTemplate.exchange(
+          SPOTIFY_PLAYLIST_URL + playlistId,
           HttpMethod.GET,
           entity,
-          Map.class);
+          new ParameterizedTypeReference<PlaylistMeta>() {}
+        );
 
-      int total = (int) totalResponse.getBody().get("total");
+        // Metadata *should* never be null
+        // As long as ID is valid, response *should* have a body, even if playlist doesn't have any tracks
+        // If something tragic happens, this will throw a null pointer exception
+        // But that really shouldn't happen
+        playlistMeta = Objects.requireNonNull(playlistMetaResponse.getBody(), "Playlist metadata was unexpectedly null");
+        playlistName = playlistMeta.getName();
+        total = playlistMeta.getTracks().getTotal();
 
-      List<Object> allItems = new ArrayList<>();
-      int limit = 100;
 
-      for (int offset = 0; offset < total; offset += limit) {
-        UriComponentsBuilder pageBuilder = UriComponentsBuilder
+
+
+      } catch (NullPointerException npe) {
+        // I really don't expect this to ever happen
+        // In the absolutley apocalpytic case that it does, this will handle it
+        return new ResponseEntity<>("Playlist metadata was null or malformed", HttpStatus.INTERNAL_SERVER_ERROR);
+      } catch (Exception e) {
+        // Catch any other exceptions that happen here
+        // Should be a valid (ie base62), but bad ID
+        return new ResponseEntity<>("Caught Exception in Playlist Metadata", HttpStatus.BAD_REQUEST);
+      }
+
+      try {
+        for (int offset = 0; offset < total; offset += limit) {
+          UriComponentsBuilder pageBuilder = UriComponentsBuilder
             .fromUriString(SPOTIFY_PLAYLIST_URL + playlistId + "/tracks")
             .queryParam("limit", limit)
             .queryParam("offset", offset);
 
-        ResponseEntity<Map> pageResponse = restTemplate.exchange(
+          ResponseEntity<PageTracks> pageResponse = restTemplate.exchange(
             pageBuilder.toUriString(),
             HttpMethod.GET,
             entity,
-            Map.class);
+            new ParameterizedTypeReference<PageTracks>() {}
+            );
 
-        List<Object> pageItems = (List<Object>) pageResponse.getBody().get("items");
-        allItems.addAll(pageItems);
+          PageTracks pageItems =  Objects.requireNonNull(pageResponse.getBody(), "Paginated Tracks Response Was Unexpectedly Null");
+          allTracks.addAll(pageItems.getItems());
 
+          
+        }
+
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("id", playlistId);
+        responseBody.put("name", playlistName);
+        responseBody.put("total", total);
+        responseBody.put("tracks", allTracks);
+
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
+      } catch (NullPointerException npe) {
+        return new ResponseEntity<>("Paginated Tracks Response Was Unexpectedly Null", HttpStatus.INTERNAL_SERVER_ERROR);
+      } catch (Exception e) {
+        return new ResponseEntity<>("Caught Exception in All Tracks", HttpStatus.BAD_REQUEST);
       }
-
-      Map<String, Object> response = new HashMap<>();
-      response.put("id", playlistId);
-      response.put("total", total);
-      response.put("tracks", allItems);
-
-      return new ResponseEntity<>(response, HttpStatus.OK);
-
     }
 
     return new ResponseEntity<>("Invalid Playlist", HttpStatus.OK);

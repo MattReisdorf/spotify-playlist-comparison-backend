@@ -10,20 +10,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.catalina.connector.Response;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -42,27 +37,33 @@ public class ApiController {
   @GetMapping("/api/user")
   public ResponseEntity<String> getUserData(HttpServletRequest request) {
 
-    HttpSession session = request.getSession(false);
-
-    if (session == null || session.getAttribute("access_token") == null) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not Authorized");
+    // HttpSession session = request.getSession(false);
+    HttpSession session;
+    try {
+      session = request.getSession(false);
+    } catch (Exception e) {
+      return new ResponseEntity<String>(e.getMessage(), HttpStatus.UNAUTHORIZED);
     }
 
     String accessToken = (String) session.getAttribute("access_token");
-
     HttpHeaders headers = new HttpHeaders();
     headers.setBearerAuth(accessToken);
 
     HttpEntity<String> entity = new HttpEntity<>(headers);
 
     RestTemplate restTemplate = new RestTemplate();
-    ResponseEntity<String> userDataResponse = restTemplate.exchange(
-        SPOTIFY_USER_URL,
-        HttpMethod.GET,
-        entity,
-        String.class);
 
-    return ResponseEntity.status(userDataResponse.getStatusCode()).body(userDataResponse.getBody());
+    try {
+      ResponseEntity<String> userDataResponse = restTemplate.exchange(
+          SPOTIFY_USER_URL,
+          HttpMethod.GET,
+          entity,
+          String.class);
+
+      return new ResponseEntity<String>(userDataResponse.getBody(), userDataResponse.getStatusCode());
+    } catch (Exception e) {
+      return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @GetMapping("/api/playlist")
@@ -118,7 +119,7 @@ public class ApiController {
       } catch (Exception e) {
         // Catch any other exceptions that happen here
         // Should be a valid (ie base62), but bad ID
-        return new ResponseEntity<>("Caught Exception in Playlist Metadata", HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
       }
 
       try {
@@ -145,7 +146,6 @@ public class ApiController {
         responseBody.put("name", playlistName);
         responseBody.put("total", total);
         responseBody.put("tracks", allTracks);
-
         return new ResponseEntity<>(responseBody, HttpStatus.OK);
       } catch (NullPointerException npe) {
         return new ResponseEntity<>("Paginated Tracks Response Was Unexpectedly Null",
@@ -154,8 +154,6 @@ public class ApiController {
         return new ResponseEntity<>("Caught Exception in All Tracks", HttpStatus.BAD_REQUEST);
       }
     }
-
     return new ResponseEntity<>("Invalid Playlist", HttpStatus.OK);
-
   }
 }

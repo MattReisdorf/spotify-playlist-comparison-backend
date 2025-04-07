@@ -22,7 +22,11 @@ public class SpotifyApiService {
   private final String SPOTIFY_USER_URL = "https://api.spotify.com/v1/me";
   private final String SPOTIFY_PLAYLIST_URL = "https://api.spotify.com/v1/playlists/";
 
-  private final RestTemplate restTemplate = new RestTemplate();
+  private final RestTemplate restTemplate;
+
+  public SpotifyApiService(RestTemplate restTemplate) {
+    this.restTemplate = restTemplate;
+  }
 
   public String getCurrentUserData(HttpSession session) {
     String accessToken = (String) session.getAttribute("access_token");

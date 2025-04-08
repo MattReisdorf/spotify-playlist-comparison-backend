@@ -1,10 +1,9 @@
 package com.mattreisdorf.spotify_playlist_comparison_backend.controller;
 
+import com.mattreisdorf.spotify_playlist_comparison_backend.exception.PlaylistNotFoundException;
 import com.mattreisdorf.spotify_playlist_comparison_backend.service.SpotifyApiService;
 
 import java.util.Map;
-
-import javax.naming.NameNotFoundException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -50,7 +49,7 @@ public class ApiController {
       return ResponseEntity.ok(playlistDetails);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-    } catch (NameNotFoundException e) {
+    } catch (PlaylistNotFoundException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());

@@ -1,5 +1,6 @@
 package com.mattreisdorf.spotify_playlist_comparison_backend.service;
 
+import com.mattreisdorf.spotify_playlist_comparison_backend.exception.PlaylistNotFoundException;
 import com.mattreisdorf.spotify_playlist_comparison_backend.model.PageTracks;
 import com.mattreisdorf.spotify_playlist_comparison_backend.model.PlaylistMeta;
 import com.mattreisdorf.spotify_playlist_comparison_backend.model.TrackItem;
@@ -14,7 +15,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.*;
 
-import javax.naming.NameNotFoundException;
 
 @Service
 public class SpotifyApiService {
@@ -43,7 +43,7 @@ public class SpotifyApiService {
     return response.getBody();
   }
 
-  public Map<String, Object> getPlaylistDetails(String playlistUrl, HttpSession session) throws NameNotFoundException {
+  public Map<String, Object> getPlaylistDetails(String playlistUrl, HttpSession session) {
     String playlistId = ApiUtils.extractIdString(playlistUrl);
     if (!ApiUtils.validateIdString(playlistId)) {
       throw new IllegalArgumentException("Invalid Playlist (Must be full URL or ID with characters 0-9, a-z, A-Z)");
@@ -54,7 +54,6 @@ public class SpotifyApiService {
     headers.setBearerAuth(accessToken);
     HttpEntity<String> entity = new HttpEntity<>(headers);
 
-    RestTemplate restTemplate = new RestTemplate();
 
     PlaylistMeta playlistMeta;
     String playlistName;
@@ -79,7 +78,7 @@ public class SpotifyApiService {
       total = playlistMeta.getTracks().getTotal();
 
     } catch (Exception e) {
-      throw new NameNotFoundException("Playlist Not Found");
+      throw new PlaylistNotFoundException("Playlist Not Found");
     }
 
     try {

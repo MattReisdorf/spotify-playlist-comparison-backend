@@ -42,7 +42,7 @@ public class ApiController {
     try {
       HttpSession session = request.getSession(false);
       if (session == null) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Session has ended. Please reload the page");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Session has ended. Please reload the page.");
       }
 
       Map<String, Object> playlistDetails = spotifyApiService.getPlaylistDetails(playlistUrl, session);

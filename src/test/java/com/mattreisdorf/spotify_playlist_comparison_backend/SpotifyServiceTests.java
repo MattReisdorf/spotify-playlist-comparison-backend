@@ -59,7 +59,7 @@ class SpotifyServiceTests {
 	}
 
 	@Test
-	void testGetCurrenUserData_Success() {
+	void testGetCurrentUserData_Success() {
 		when(mockSession.getAttribute("access_token")).thenReturn("mock_token");
 
 		ResponseEntity<String> mockResponse = new ResponseEntity<>("User Data", HttpStatus.OK);

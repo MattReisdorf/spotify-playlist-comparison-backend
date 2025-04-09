@@ -1,5 +1,4 @@
 package com.mattreisdorf.spotify_playlist_comparison_backend;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mattreisdorf.spotify_playlist_comparison_backend.controller.ApiController;
 import com.mattreisdorf.spotify_playlist_comparison_backend.exception.PlaylistNotFoundException;
 import com.mattreisdorf.spotify_playlist_comparison_backend.service.SpotifyApiService;
@@ -33,8 +32,42 @@ public class SpotifyControllerTests {
   @MockBean
   private SpotifyApiService spotifyApiService;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Test
+  void testGetCurrentUserData_Success() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute("access_token", "mock_token");
+
+    String mockUserData = "{\"id\":\"user123\",\"display_name\":\"Mock User\"}";
+
+    when(spotifyApiService.getCurrentUserData(any()))
+        .thenReturn(mockUserData);
+
+    mockMvc.perform(get("/api/user")
+            .session(session))
+        .andExpect(status().isOk())
+        .andExpect(content().json(mockUserData));
+  }
+
+  @Test
+  void testGetCurrentUserData_UnauthorizedFailure() throws Exception {
+    mockMvc.perform(get("/api/user"))
+      .andExpect(status().isUnauthorized())
+      .andExpect(content().string("Not Authorized"));
+  }
+
+  @Test
+  void testGetCurrentUserData_InternalServerErrorFailure() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    session.setAttribute("access_token", "mock_token");
+
+    when(spotifyApiService.getCurrentUserData(any()))
+      .thenThrow(new RuntimeException("Something Went Wrong"));
+
+    mockMvc.perform(get("/api/user")
+      .session(session))
+      .andExpect(status().isInternalServerError())
+      .andExpect(content().string("Something Went Wrong"));
+  }
 
   @Test
   void testGetPlaylistData_Success() throws Exception {

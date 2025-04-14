@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+### Holds ENV variables until I figure out a better solution ###
+src/main/resources/donotcommit.ap
